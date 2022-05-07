@@ -1,14 +1,19 @@
 #include <Arduino.h>
 #include "IRrecv.h"
 #include "IRsend.h"
+#include <ESP8266WiFi.h> 
+
+const char* ssid     = "devolo-178";         // The SSID (name) of the Wi-Fi network you want to connect to
+const char* password = "APYLKAGMLRSOYXUB"; 
 
 
-uint16_t RECV_PIN = D5; // for ESP8266 micrcontroller
-uint16_t SEND_PIN = D6; // for ESP8266 micrcontroller
+uint16_t RECV_PIN = D5; 
+uint16_t SEND_PIN = D6; 
 
 
 
 uint32_t message = (uint32_t) 1;
+uint32_t device_id = (uint32_t) 0;
 
 #define LED D0
 
@@ -21,6 +26,8 @@ uint32_t message = (uint32_t) 1;
 #define RED 1
 #define BLUE 2
 #define GREEN 3
+#define CYAN 4
+
 
 IRrecv irrecv(RECV_PIN);
 IRsend irsend(SEND_PIN);
@@ -40,19 +47,6 @@ decode_results results;
 
 bool buttonState = false;
 
-void setup()
-{
-  Serial.begin(9600);
-  pinMode(LED, OUTPUT);
-  pinMode(Button, INPUT);
-
-  pinMode(redPin, OUTPUT);
-  pinMode(bluePin, OUTPUT);
-  pinMode(greenPin, OUTPUT);
-
-  irrecv.enableIRIn();
-  irsend.begin();
-}
 
 void rgb(int color)
 {
@@ -73,6 +67,11 @@ void rgb(int color)
     analogWrite(bluePin, 0);
     analogWrite(greenPin, 255);
     break;
+  case CYAN:
+    analogWrite(redPin, 255);
+    analogWrite(bluePin, 255);
+    analogWrite(greenPin, 0);
+    break;  
 
   default:
     analogWrite(redPin, 255);
@@ -81,6 +80,45 @@ void rgb(int color)
     break;
   }
 }
+
+
+void setup()
+{
+  Serial.begin(9600);
+  pinMode(LED, OUTPUT);
+  pinMode(Button, INPUT);
+
+  pinMode(redPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+
+  Serial.print("setup IR");
+  irrecv.enableIRIn();
+  irsend.begin();
+
+
+  WiFi.begin(ssid, password);             // Connect to the network
+  Serial.print("Connecting to ");
+  Serial.print(ssid); Serial.println(" ...");
+
+
+  rgb(RED);
+
+  int i = 0;
+  while (WiFi.status() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
+    delay(1000);
+    Serial.print(++i); Serial.print(' ');
+  }
+
+   Serial.print("connected!!");
+   Serial.println(WiFi.localIP());
+   IPAddress address = WiFi.localIP();
+   Serial.println(u32_t(address));  
+   device_id = u32_t(address);
+  
+
+}
+
 
 void loop()
 {
@@ -92,9 +130,7 @@ void loop()
     digitalWrite(LED, HIGH);
     rgb(RED);
 
-    irsend.sendNEC(message, 32);
-    Serial.print("Send:" + message);
-
+    irsend.sendNEC(device_id, 32);
   }
   else
   {
@@ -106,14 +142,6 @@ void loop()
   {
      Serial.print("results.value=");
      Serial.println(results.value);
-
-    if (results.value >> 32){
-      Serial.print("first part: ");
-      Serial.println((uint32_t)(results.value >> 32), HEX);        // print the first part of the message
-    }                                     // print() & println() can't handle printing long longs. (uint64_t)
-
-      Serial.print("second part: ");
-    Serial.println((uint32_t)(results.value & 0xFFFFFFFF), HEX); // print the second part of the message
     irrecv.resume();                                             // Receive the next value
   }
 }
