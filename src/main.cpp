@@ -4,8 +4,23 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include "Adafruit_SSD1306.h"
+#include <Adafruit_GrayOLED.h>
+
+#define SCREEN_WIDTH  128
+#define SCREEN_HEIGHT 32
+#define OLED_RESET 14
+
+
+
+
 const char *ssid = "devolo-178"; // The SSID (name) of the Wi-Fi network you want to connect to
 const char *password = "APYLKAGMLRSOYXUB";
+
+
 
 uint16_t RECV_PIN = D5;
 uint16_t SEND_PIN = D6;
@@ -18,9 +33,9 @@ WiFiClient wifiClient;
 
 #define LED D0
 
-#define Button D1
+#define Button D7
 
-#define redPin D2
+#define redPin D8
 #define bluePin D3
 #define greenPin D4
 
@@ -29,10 +44,16 @@ WiFiClient wifiClient;
 #define GREEN 3
 #define CYAN 4
 
+
+
 IRrecv irrecv(RECV_PIN);
 IRsend irsend(SEND_PIN);
 
 decode_results results;
+
+
+
+
 
 // Button module pin:
 // S -> 3V
@@ -80,8 +101,13 @@ void rgb(int color)
   }
 }
 
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+
 void setup()
 {
+  Wire.begin(4,5);
   Serial.begin(9600);
   pinMode(LED, OUTPUT);
   pinMode(Button, INPUT);
@@ -101,6 +127,25 @@ void setup()
 
   rgb(RED);
 
+
+
+  	// initialize with the I2C addr 0x3C
+	if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)){
+    Serial.println("SSD1306");
+  };  
+
+  // Clear the buffer.
+	display.clearDisplay();
+
+	// Display Text
+	display.setTextSize(1);
+	display.setTextColor(WHITE);
+	display.setCursor(0,1);
+	display.println("Try to connect to network");
+	display.display();
+  delay(1000);
+	
+
   int i = 0;
   while (WiFi.status() != WL_CONNECTED)
   { // Wait for the Wi-Fi to connect
@@ -108,12 +153,26 @@ void setup()
     Serial.print(++i);
     Serial.print(' ');
   }
+    rgb(GREEN);
 
   Serial.print("connected!!");
   Serial.println(WiFi.localIP());
   IPAddress address = WiFi.localIP();
-  Serial.println(u32_t(address));
-  device_id = u32_t(address);
+  Serial.println(address[3]);
+  device_id = address[3];
+
+  display.clearDisplay();
+  display.setCursor(0,1);
+	display.println("gun id = " + String(device_id));
+	display.display();
+
+  //delay(2000);
+	//display.clearDisplay();
+
+
+
+  
+  
 
   // test http get request
 
@@ -164,6 +223,10 @@ void setup()
 
 void loop()
 {
+
+
+
+
   buttonState = digitalRead(Button);
   delay(50);
 
@@ -173,6 +236,7 @@ void loop()
     rgb(RED);
 
     irsend.sendNEC(device_id, 32);
+
   }
   else
   {
