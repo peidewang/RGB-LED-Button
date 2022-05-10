@@ -10,6 +10,18 @@
 #include "Adafruit_SSD1306.h"
 #include <Adafruit_GrayOLED.h>
 
+
+
+//#include "AudioFileSourceSPIFFS.h"
+#include "AudioFileSourceLittleFS.h"
+#include "AudioGeneratorMP3.h"
+#include "AudioOutputI2SNoDAC.h"
+
+AudioGeneratorMP3 *mp3;
+AudioFileSourceLittleFS *file;
+AudioOutputI2SNoDAC *out;
+
+
 #define SCREEN_WIDTH  128
 #define SCREEN_HEIGHT 32
 #define OLED_RESET 14
@@ -107,6 +119,13 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 void setup()
 {
+
+  LittleFS.begin();
+  file = new AudioFileSourceLittleFS("/blaster.mp3");
+  mp3 = new AudioGeneratorMP3();
+  out = new AudioOutputI2SNoDAC();
+  mp3->begin(file, out);
+
   Wire.begin(4,5);
   Serial.begin(9600);
   pinMode(LED, OUTPUT);
@@ -224,7 +243,15 @@ void setup()
 void loop()
 {
 
+  if (mp3->isRunning()) {
+    if (!mp3->loop()) mp3->stop(); 
+  } else {
+    Serial.printf("MP3 done\n");
+    delay(1000);
+    mp3->begin(file, out);
+    Serial.printf("play again\n");
 
+  }
 
 
   buttonState = digitalRead(Button);
